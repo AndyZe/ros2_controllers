@@ -41,7 +41,7 @@ public:
   convert_cartesian_deltas_to_joint_deltas(
     std::vector<double> & delta_x_vec,
     const geometry_msgs::msg::TransformStamped & control_frame_to_ik_base,
-    std::vector<double> & delta_theta_vec);
+    std::vector<double> & delta_theta_vec) = 0;
 
   /**
    * \brief Convert joint delta-theta to Cartesian delta-x, using the Jacobian.
@@ -54,11 +54,11 @@ public:
   convert_joint_deltas_to_cartesian_deltas(
     std::vector<double> &  delta_theta_vec,
     const geometry_msgs::msg::TransformStamped & tf_ik_base_to_desired_cartesian_frame,
-    std::vector<double> & delta_x_vec);
+    std::vector<double> & delta_x_vec) = 0;
 
   /**
    * \brief Update the state of the robot in the IK solver
    */
-  virtual bool update_robot_state(const trajectory_msgs::msg::JointTrajectoryPoint & current_joint_state);
+  virtual bool update_robot_state(const trajectory_msgs::msg::JointTrajectoryPoint & current_joint_state) = 0;
 };
 }

@@ -69,8 +69,20 @@ controller_interface::return_type AdmittanceRule::configure(rclcpp::Node::Shared
   admittance_rule_calculated_values_.accelerations.resize(6, 0.0);
   admittance_rule_calculated_values_.effort.resize(6, 0.0);
 
-  // Initialize IK
+  // Load the differential IK plugin
   ik_ = std::make_shared<MoveItKinematics>(node, parameters_.ik_group_name_);
+  std::string plugin_name = "moveit_differential_ik_plugin::MoveItKinematics";
+  // try
+  // {
+  //   // TODO(andyz): get plugin name from parameter
+  //   new_ik_ = ik_loader_.createSharedInstance(plugin_name);
+  // }
+  // catch (pluginlib::PluginlibException& ex)
+  // {
+  //   RCLCPP_ERROR(rclcpp::get_logger("AdmittanceRule"), "Exception while loading the smoothing plugin '%s': '%s'",
+  //                plugin_name.c_str(), ex.what());
+  //   std::exit(EXIT_FAILURE);
+  // }
 
   return controller_interface::return_type::OK;
 }

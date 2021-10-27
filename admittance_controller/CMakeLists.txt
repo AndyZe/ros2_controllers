@@ -55,6 +55,7 @@ ament_target_dependencies(ik_plugin_base
 # The admittance controller
 add_library(admittance_controller SHARED
   src/admittance_controller.cpp
+  src/ik_plugin_base.cpp
   src/moveit_kinematics.cpp
 )
 target_include_directories(

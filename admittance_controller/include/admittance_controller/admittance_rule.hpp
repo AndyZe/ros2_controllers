@@ -34,6 +34,10 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include <tf2_ros/buffer.h>
 
+// Differential kinematics plugins
+#include "admittance_controller/ik_plugin_base.hpp"
+#include "pluginlib/class_loader.hpp"
+
 namespace {  // Utility namespace
 
 // Numerical accuracy checks. Used as deadbands.
@@ -359,7 +363,10 @@ public:
 class AdmittanceRule
 {
 public:
-  AdmittanceRule() = default;
+  AdmittanceRule() :
+    ik_loader_("admittance_controller", "admittance_controller::IKBaseClass")
+  {
+  }
 
   controller_interface::return_type configure(rclcpp::Node::SharedPtr node);
 
@@ -435,6 +442,9 @@ protected:
     trajectory_msgs::msg::JointTrajectoryPoint & desired_joint_state
   );
 
+  // Differential IK algorithm (loads a plugin)
+  pluginlib::ClassLoader<admittance_controller::IKBaseClass> ik_loader_;
+  std::shared_ptr<admittance_controller::IKBaseClass> new_ik_;
   // IK variables
   std::shared_ptr<MoveItKinematics> ik_;
 
