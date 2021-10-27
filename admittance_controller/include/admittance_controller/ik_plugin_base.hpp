@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+
 #include "rclcpp/rclcpp.hpp"
 
 namespace admittance_controller
@@ -26,5 +29,36 @@ class IKBaseClass
 public:
   IKBaseClass();
   virtual ~IKBaseClass();
+
+  /**
+   * \brief Convert Cartesian delta-x to joint delta-theta, using the Jacobian.
+   * \param delta_x_vec input Cartesian deltas (x, y, z, rx, ry, rz)
+   * \param control_frame_to_ik_base transform the requested delta_x to ik_base frame
+   * \param delta_theta_vec output vector with joint states
+   * \return true if successful
+   */
+  virtual bool
+  convert_cartesian_deltas_to_joint_deltas(
+    std::vector<double> & delta_x_vec,
+    const geometry_msgs::msg::TransformStamped & control_frame_to_ik_base,
+    std::vector<double> & delta_theta_vec);
+
+  /**
+   * \brief Convert joint delta-theta to Cartesian delta-x, using the Jacobian.
+   * \param[in] delta_theta_vec vector with joint states
+   * \param[in] tf_ik_base_to_desired_cartesian_frame transformation to the desired Cartesian frame. Use identity matrix to stay in the ik_base frame.
+   * \param[out] delta_x_vec  Cartesian deltas (x, y, z, rx, ry, rz)
+   * \return true if successful
+   */
+  virtual bool
+  convert_joint_deltas_to_cartesian_deltas(
+    std::vector<double> &  delta_theta_vec,
+    const geometry_msgs::msg::TransformStamped & tf_ik_base_to_desired_cartesian_frame,
+    std::vector<double> & delta_x_vec);
+
+  /**
+   * \brief Update the state of the robot in the IK solver
+   */
+  virtual bool update_robot_state(const trajectory_msgs::msg::JointTrajectoryPoint & current_joint_state);
 };
 }

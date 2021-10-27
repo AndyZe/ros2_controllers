@@ -16,8 +16,11 @@
 
 #pragma once
 
-#include "Eigen/Core"
+#include <eigen3/Eigen/Core>
+
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "trajectory_msgs/msg/joint_trajectory_point.hpp"
+
 #include "moveit/robot_model_loader/robot_model_loader.h"
 #include "moveit/robot_state/robot_state.h"
 #include "rclcpp/rclcpp.hpp"
