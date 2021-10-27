@@ -29,9 +29,30 @@ find_package(tf2_eigen REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-add_library(
-  admittance_controller
-  SHARED
+# We require a differential inverse kinematics plugin for converting Cartesian admittance to joint admittance
+# Base class for the IK plugin
+add_library(ik_plugin_base SHARED
+  src/ik_plugin_base.cpp
+)
+target_include_directories(
+  ik_plugin_base
+  PRIVATE
+  include
+)
+include(GenerateExportHeader)
+generate_export_header(ik_plugin_base)
+target_include_directories(ik_plugin_base PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+)
+set_target_properties(ik_plugin_base PROPERTIES VERSION
+  "${${PROJECT_NAME}_VERSION}"
+)
+ament_target_dependencies(ik_plugin_base
+  rclcpp
+)
+
+# The admittance controller
+add_library(admittance_controller SHARED
   src/admittance_controller.cpp
   src/moveit_kinematics.cpp
 )
