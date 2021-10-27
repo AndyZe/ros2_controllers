@@ -96,7 +96,7 @@ bool MoveItKinematics::convert_cartesian_deltas_to_joint_deltas(
   pseudo_inverse_ = svd.matrixV() * matrix_s_.inverse() * svd.matrixU().transpose();
 
   Eigen::VectorXd  delta_theta = pseudo_inverse_ * delta_x;
-  delta_theta *= velocityScalingFactorForSingularity(delta_x, svd, pseudo_inverse_);
+  delta_theta *= velocity_scaling_factor_for_singularity(delta_x, svd, pseudo_inverse_);
 
   std::vector<double> delta_theta_v(&delta_theta[0], delta_theta.data() + delta_theta.cols() * delta_theta.rows());
   delta_theta_vec = delta_theta_v;
@@ -154,16 +154,8 @@ bool MoveItKinematics::convert_joint_deltas_to_cartesian_deltas(
   return true;
 }
 
-Eigen::Isometry3d MoveItKinematics::get_link_transform(
-  const std::string& link_name, const trajectory_msgs::msg::JointTrajectoryPoint & joint_state)
-{
-  update_robot_state(joint_state);
-
-  return kinematic_state_->getGlobalLinkTransform(link_name);
-}
-
 // Possibly calculate a velocity scaling factor, due to proximity of singularity and direction of motion
-double MoveItKinematics::velocityScalingFactorForSingularity(const Eigen::VectorXd& commanded_velocity,
+double MoveItKinematics::velocity_scaling_factor_for_singularity(const Eigen::VectorXd& commanded_velocity,
                                                        const Eigen::JacobiSVD<Eigen::MatrixXd>& svd,
                                                        const Eigen::MatrixXd& pseudo_inverse)
 {

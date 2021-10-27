@@ -60,13 +60,6 @@ public:
     const geometry_msgs::msg::TransformStamped & tf_ik_base_to_desired_cartesian_frame,
     std::vector<double> & delta_x_vec);
 
-  /**
-   *  \brief Get a link transform in MoveIt's reference frame, ik_base
-   */
-  Eigen::Isometry3d
-  get_link_transform(
-    const std::string& link_name, const trajectory_msgs::msg::JointTrajectoryPoint & joint_state);
-
   bool update_robot_state(const trajectory_msgs::msg::JointTrajectoryPoint & current_joint_state)
   {
     if (current_joint_state.positions.size() != joint_model_group_->getVariableNames().size())
@@ -83,7 +76,7 @@ private:
   /** \brief Possibly calculate a velocity scaling factor, due to proximity of
    * singularity and direction of motion
    */
-  double velocityScalingFactorForSingularity(const Eigen::VectorXd& commanded_velocity,
+  double velocity_scaling_factor_for_singularity(const Eigen::VectorXd& commanded_velocity,
                                              const Eigen::JacobiSVD<Eigen::MatrixXd>& svd,
                                              const Eigen::MatrixXd& pseudo_inverse);
 
