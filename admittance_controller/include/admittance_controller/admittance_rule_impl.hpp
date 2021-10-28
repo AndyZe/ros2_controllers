@@ -78,16 +78,16 @@ controller_interface::return_type AdmittanceRule::configure(rclcpp::Node::Shared
     RCLCPP_ERROR(rclcpp::get_logger("AdmittanceRule"), "A differential IK plugin must be loaded. Exiting.");
     std::exit(EXIT_FAILURE);
   }
-  // try
-  // {
-  //   new_ik_ = ik_loader_.createSharedInstance(plugin_name);
-  // }
-  // catch (pluginlib::PluginlibException& ex)
-  // {
-  //   RCLCPP_ERROR(rclcpp::get_logger("AdmittanceRule"), "Exception while loading the smoothing plugin '%s': '%s'",
-  //                plugin_name.c_str(), ex.what());
-  //   std::exit(EXIT_FAILURE);
-  // }
+  try
+  {
+    new_ik_ = ik_loader_.createSharedInstance(plugin_name);
+  }
+  catch (pluginlib::PluginlibException& ex)
+  {
+    RCLCPP_ERROR(rclcpp::get_logger("AdmittanceRule"), "Exception while loading the IK plugin '%s': '%s'",
+                 plugin_name.c_str(), ex.what());
+    std::exit(EXIT_FAILURE);
+  }
 
   return controller_interface::return_type::OK;
 }
