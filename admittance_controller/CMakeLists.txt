@@ -18,8 +18,6 @@ find_package(filters REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(hardware_interface REQUIRED)
 find_package(joint_limits REQUIRED)
-find_package(moveit_ros_move_group REQUIRED)
-find_package(moveit_ros_planning_interface REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
@@ -56,7 +54,6 @@ ament_target_dependencies(ik_plugin_base
 add_library(admittance_controller SHARED
   src/admittance_controller.cpp
   src/ik_plugin_base.cpp
-  src/moveit_kinematics.cpp
 )
 target_include_directories(
   admittance_controller
@@ -72,8 +69,6 @@ ament_target_dependencies(
   geometry_msgs
   hardware_interface
   joint_limits
-  moveit_ros_move_group
-  moveit_ros_planning_interface
   pluginlib
   rclcpp
   rclcpp_lifecycle

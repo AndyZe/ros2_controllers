@@ -20,7 +20,6 @@
 #include <map>
 
 #include "angles/angles.h"
-#include "admittance_controller/moveit_kinematics.hpp"
 #include "control_msgs/msg/admittance_controller_state.hpp"
 #include "controller_interface/controller_interface.hpp"
 #include "controller_interface/controller_parameters.hpp"
