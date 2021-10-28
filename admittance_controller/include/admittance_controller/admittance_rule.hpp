@@ -444,9 +444,7 @@ protected:
 
   // Differential IK algorithm (loads a plugin)
   pluginlib::ClassLoader<admittance_controller::IKBaseClass> ik_loader_;
-  std::shared_ptr<admittance_controller::IKBaseClass> new_ik_;
-  // IK variables
-  std::shared_ptr<MoveItKinematics> ik_;
+  std::shared_ptr<admittance_controller::IKBaseClass> ik_;
 
   // Clock
   rclcpp::Clock::SharedPtr clock_;

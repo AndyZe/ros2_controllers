@@ -31,6 +31,13 @@ public:
   virtual ~IKBaseClass();
 
   /**
+   * \brief Create an object which takes Cartesian delta-x and converts to joint delta-theta.
+   * It uses the Jacobian from MoveIt.
+   */
+  virtual bool
+  initialize(const std::shared_ptr<rclcpp::Node> & node, const std::string & group_name) = 0;
+
+  /**
    * \brief Convert Cartesian delta-x to joint delta-theta, using the Jacobian.
    * \param delta_x_vec input Cartesian deltas (x, y, z, rx, ry, rz)
    * \param control_frame_to_ik_base transform the requested delta_x to ik_base frame
