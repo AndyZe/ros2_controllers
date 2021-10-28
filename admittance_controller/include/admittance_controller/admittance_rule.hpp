@@ -176,10 +176,11 @@ namespace admittance_controller
 class AdmittanceParameters : public controller_interface::ControllerParameters
 {
 public:
-  AdmittanceParameters() : controller_interface::ControllerParameters(7, 24, 4)
+  AdmittanceParameters() : controller_interface::ControllerParameters(7, 24, 5)
   {
     add_string_parameter("IK.base", false);
     add_string_parameter("IK.group_name", false);
+    add_string_parameter("IK.plugin_name", false);
     add_string_parameter("control_frame", true);
     add_string_parameter("sensor_frame", false);
 
@@ -299,11 +300,15 @@ public:
     RCUTILS_LOG_INFO_NAMED(
         logger_name_.c_str(),
        "IK group name frame: %s", ik_group_name_.c_str());
-    control_frame_ = string_parameters_[2].second;
+    ik_plugin_name_ = string_parameters_[2].second;
+    RCUTILS_LOG_INFO_NAMED(
+        logger_name_.c_str(),
+       "IK plugin name: %s", ik_plugin_name_.c_str());
+    control_frame_ = string_parameters_[3].second;
     RCUTILS_LOG_INFO_NAMED(
         logger_name_.c_str(),
        "Control frame: %s", control_frame_.c_str());
-    sensor_frame_ = string_parameters_[3].second;
+    sensor_frame_ = string_parameters_[4].second;
     RCUTILS_LOG_INFO_NAMED(
         logger_name_.c_str(),
        "Sensor frame: %s", sensor_frame_.c_str());
@@ -344,11 +349,12 @@ public:
   // IK parameters
   std::string ik_base_frame_;
   std::string ik_group_name_;
+  std::string ik_plugin_name_;
+  // Depends on the scenario: usually base_link, tool or end-effector
+  std::string control_frame_;
   // Admittance calculations (displacement etc) are done in this frame.
   // Frame where wrench measurements are taken
   std::string sensor_frame_;
-  // Depends on the scenario: usually base_link, tool or end-effector
-  std::string control_frame_;
 
   bool open_loop_control_;
 
