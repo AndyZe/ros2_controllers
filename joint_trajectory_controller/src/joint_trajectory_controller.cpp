@@ -757,6 +757,7 @@ controller_interface::CallbackReturn JointTrajectoryController::on_configure(
   RCLCPP_INFO(logger, "Action status changes will be monitored at %.2f Hz.", action_monitor_rate);
   action_monitor_period_ = rclcpp::Duration::from_seconds(1.0 / action_monitor_rate);
 
+  cb_group_ = get_node()->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
   using namespace std::placeholders;
   action_server_ = rclcpp_action::create_server<FollowJTrajAction>(
     get_node()->get_node_base_interface(), get_node()->get_node_clock_interface(),
@@ -764,7 +765,10 @@ controller_interface::CallbackReturn JointTrajectoryController::on_configure(
     std::string(get_node()->get_name()) + "/follow_joint_trajectory",
     std::bind(&JointTrajectoryController::goal_callback, this, _1, _2),
     std::bind(&JointTrajectoryController::cancel_callback, this, _1),
-    std::bind(&JointTrajectoryController::feedback_setup_callback, this, _1));
+    std::bind(&JointTrajectoryController::feedback_setup_callback, this, _1),
+    rcl_action_server_get_default_options(),
+    cb_group_
+    );
 
   return CallbackReturn::SUCCESS;
 }
