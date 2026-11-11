@@ -1139,6 +1139,21 @@ rclcpp_action::GoalResponse JointTrajectoryController::goal_received_callback(
     return rclcpp_action::GoalResponse::REJECT;
   }
 
+  // A new goal can only preempt the active goal if its priority is equal or higher
+  const auto active_goal = *rt_active_goal_.readFromNonRT();
+  if (active_goal && active_goal->gh_ && active_goal->gh_->is_active())
+  {
+    const auto active_priority = active_goal->gh_->get_goal()->priority;
+    if (goal->priority < active_priority)
+    {
+      RCLCPP_ERROR(
+        get_node()->get_logger(),
+        "Rejecting new action goal with priority %u, as the active goal has a higher priority %u.",
+        static_cast<unsigned int>(goal->priority), static_cast<unsigned int>(active_priority));
+      return rclcpp_action::GoalResponse::REJECT;
+    }
+  }
+
   RCLCPP_INFO(get_node()->get_logger(), "Accepted new action goal");
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }

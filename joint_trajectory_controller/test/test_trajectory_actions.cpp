@@ -15,6 +15,7 @@
 #ifndef _MSC_VER
 #include <cxxabi.h>
 #endif
+#include <atomic>
 #include <chrono>
 #include <functional>
 #include <future>
@@ -160,6 +161,48 @@ protected:
     goal_msg.trajectory.points = points;
 
     return action_client_->async_send_goal(goal_msg, opt);
+  }
+
+  std::shared_future<typename GoalHandle::SharedPtr> sendActionGoalWithPriority(
+    const std::vector<JointTrajectoryPoint> & points, double goal_time_tolerance, uint8_t priority,
+    const GoalOptions & opt)
+  {
+    control_msgs::action::FollowJointTrajectory_Goal goal_msg;
+    goal_msg.goal_time_tolerance = rclcpp::Duration::from_seconds(goal_time_tolerance);
+    goal_msg.trajectory.joint_names = joint_names_;
+    goal_msg.trajectory.points = points;
+    goal_msg.priority = priority;
+
+    return action_client_->async_send_goal(goal_msg, opt);
+  }
+
+  std::vector<JointTrajectoryPoint> createSinglePointTrajectory(
+    double time_from_start, const std::vector<double> & positions)
+  {
+    JointTrajectoryPoint point;
+    point.time_from_start = rclcpp::Duration::from_seconds(time_from_start);
+    point.positions = positions;
+    return {point};
+  }
+
+  struct GoalResult
+  {
+    std::atomic<bool> received{false};
+    std::atomic<rclcpp_action::ResultCode> code{rclcpp_action::ResultCode::UNKNOWN};
+    std::atomic<int> error_code{control_msgs::action::FollowJointTrajectory_Result::SUCCESSFUL};
+  };
+
+  GoalOptions createGoalOptions(GoalResult & goal_result)
+  {
+    GoalOptions opt;
+    opt.feedback_callback = nullptr;
+    opt.result_callback = [&goal_result](const GoalHandle::WrappedResult & result)
+    {
+      goal_result.code = result.code;
+      goal_result.error_code = result.result->error_code;
+      goal_result.received = true;
+    };
+    return opt;
   }
 
   rclcpp_action::Client<FollowJointTrajectoryMsg>::SharedPtr action_client_;
@@ -964,6 +1007,173 @@ TEST_P(TestTrajectoryActionsTestParameterized, test_allow_nonzero_velocity_at_tr
   }
 
   EXPECT_TRUE(gh_future.get());
+}
+
+TEST(TestTrajectoryActionsGoal, test_goal_priority_default_is_zero)
+{
+  control_msgs::action::FollowJointTrajectory_Goal goal_msg;
+  EXPECT_EQ(0u, goal_msg.priority);
+}
+
+TEST_P(TestTrajectoryActionsTestParameterized, test_lower_priority_goal_is_rejected)
+{
+  SetUpExecutor();
+  SetUpControllerHardware();
+
+  GoalResult high_priority_result;
+  GoalResult low_priority_result;
+
+  // send a goal with a high priority
+  auto high_priority_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(1.0, {4.0, 5.0, 6.0}), 1.0, 10,
+    createGoalOptions(high_priority_result));
+  ASSERT_TRUE(high_priority_gh_future.get());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // send a goal with a lower priority while the first one is still active
+  auto low_priority_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(0.5, {1.0, 2.0, 3.0}), 1.0, 5,
+    createGoalOptions(low_priority_result));
+
+  // the goal with the lower priority is rejected
+  EXPECT_FALSE(low_priority_gh_future.get());
+
+  controller_hw_thread_.join();
+
+  // the active goal is not preempted and finishes successfully
+  EXPECT_TRUE(high_priority_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, high_priority_result.code);
+  EXPECT_EQ(
+    control_msgs::action::FollowJointTrajectory_Result::SUCCESSFUL,
+    high_priority_result.error_code);
+  EXPECT_FALSE(low_priority_result.received);
+
+  // run an update
+  updateControllerAsync(rclcpp::Duration::from_seconds(0.01));
+
+  // it should be holding the last position of the last accepted goal
+  expectCommandPoint({4.0, 5.0, 6.0});
+}
+
+TEST_P(TestTrajectoryActionsTestParameterized, test_higher_priority_goal_preempts_active_goal)
+{
+  SetUpExecutor();
+  SetUpControllerHardware();
+
+  GoalResult low_priority_result;
+  GoalResult high_priority_result;
+
+  // send a goal with a low priority
+  auto low_priority_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(1.0, {4.0, 5.0, 6.0}), 1.0, 5,
+    createGoalOptions(low_priority_result));
+  ASSERT_TRUE(low_priority_gh_future.get());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // send a goal with a higher priority while the first one is still active
+  auto high_priority_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(0.5, {1.0, 2.0, 3.0}), 1.0, 10,
+    createGoalOptions(high_priority_result));
+
+  // the goal with the higher priority is accepted
+  EXPECT_TRUE(high_priority_gh_future.get());
+
+  controller_hw_thread_.join();
+
+  // the first goal is preempted
+  EXPECT_TRUE(low_priority_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::CANCELED, low_priority_result.code);
+  EXPECT_EQ(
+    control_msgs::action::FollowJointTrajectory_Result::INVALID_GOAL,
+    low_priority_result.error_code);
+
+  // the second goal finishes successfully
+  EXPECT_TRUE(high_priority_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, high_priority_result.code);
+  EXPECT_EQ(
+    control_msgs::action::FollowJointTrajectory_Result::SUCCESSFUL,
+    high_priority_result.error_code);
+
+  // run an update
+  updateControllerAsync(rclcpp::Duration::from_seconds(0.01));
+
+  // it should be holding the last position of the last accepted goal
+  expectCommandPoint({1.0, 2.0, 3.0});
+}
+
+TEST_P(TestTrajectoryActionsTestParameterized, test_equal_priority_goal_preempts_active_goal)
+{
+  SetUpExecutor();
+  SetUpControllerHardware();
+
+  GoalResult first_result;
+  GoalResult second_result;
+
+  // send a goal with a given priority
+  auto first_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(1.0, {4.0, 5.0, 6.0}), 1.0, 7, createGoalOptions(first_result));
+  ASSERT_TRUE(first_gh_future.get());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+  // send a goal with the same priority while the first one is still active
+  auto second_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(0.5, {1.0, 2.0, 3.0}), 1.0, 7, createGoalOptions(second_result));
+
+  // the second goal is accepted
+  EXPECT_TRUE(second_gh_future.get());
+
+  controller_hw_thread_.join();
+
+  // the first goal is preempted
+  EXPECT_TRUE(first_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::CANCELED, first_result.code);
+
+  // the second goal finishes successfully
+  EXPECT_TRUE(second_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, second_result.code);
+
+  // run an update
+  updateControllerAsync(rclcpp::Duration::from_seconds(0.01));
+
+  // it should be holding the last position of the last accepted goal
+  expectCommandPoint({1.0, 2.0, 3.0});
+}
+
+TEST_P(TestTrajectoryActionsTestParameterized, test_any_priority_accepted_after_goal_finished)
+{
+  SetUpExecutor();
+  SetUpControllerHardware();
+
+  GoalResult first_result;
+  GoalResult second_result;
+
+  // send a goal with a high priority and wait until it finishes
+  auto first_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(0.2, {4.0, 5.0, 6.0}), 1.0, 10, createGoalOptions(first_result));
+  ASSERT_TRUE(first_gh_future.get());
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(600));
+  EXPECT_TRUE(first_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, first_result.code);
+
+  // a goal with a lower priority is accepted, as no goal is active anymore
+  auto second_gh_future = sendActionGoalWithPriority(
+    createSinglePointTrajectory(0.2, {1.0, 2.0, 3.0}), 1.0, 0, createGoalOptions(second_result));
+  EXPECT_TRUE(second_gh_future.get());
+
+  controller_hw_thread_.join();
+
+  EXPECT_TRUE(second_result.received);
+  EXPECT_EQ(rclcpp_action::ResultCode::SUCCEEDED, second_result.code);
+
+  // run an update
+  updateControllerAsync(rclcpp::Duration::from_seconds(0.01));
+
+  // it should be holding the last position of the last accepted goal
+  expectCommandPoint({1.0, 2.0, 3.0});
 }
 
 // position controllers
